@@ -16,7 +16,7 @@ The application has three operating modes.
 
 ## Solver
 
-The zero-setup solver is a dependency-light interactive heuristic:
+The interactive solver uses a dependency-light routing heuristic:
 
 1. prioritize stops by time-window urgency, priority and demand;
 2. evaluate best feasible insertion across all available vehicles;
@@ -61,7 +61,7 @@ python scripts/train_zone_preferences.py \
 
 ## Built-in demo
 
-The UI starts with a deterministic Boston-like network containing 56 delivery stops and eight vehicles. This is deliberately labelled as built-in demo data. It exists so the full application can be evaluated without downloading 3.1 GB first.
+The UI starts with a deterministic Boston-like network containing 56 delivery stops and eight vehicles. This is labelled as built-in demo data so it is not confused with imported research data.
 
 Imported Amazon challenge data remains separate from the demo and retains its original research-data licensing requirements.
 
@@ -74,13 +74,6 @@ uvicorn api.main:app --reload --port 8000
 
 Open `http://localhost:8000`.
 
-Run validation:
-
-```bash
-pytest -q
-python scripts/check_no_emoji.py
-```
-
 ## Research basis
 
 The repository follows three ideas from the routing literature.
@@ -89,7 +82,7 @@ First, route planning is a constrained VRP/VRPTW rather than a nearest-neighbour
 
 Second, Amazon's challenge data shows why route quality cannot be reduced to geometric distance. High-quality driver sequences also reflect delivery windows, backtracking, loading structure, zones and tacit operational preferences.
 
-Third, leading Amazon challenge approaches combine learned global or zone-level structure with conventional optimization or local search. `scripts/train_zone_preferences.py` implements a deliberately simple and explainable version of that idea by learning zone-to-zone transition probabilities from actual historical driver sequences.
+Third, leading Amazon challenge approaches combine learned global or zone-level structure with conventional optimization or local search. `scripts/train_zone_preferences.py` implements a simple, explainable version of that idea by learning zone-to-zone transition probabilities from actual historical driver sequences.
 
 See `docs/RESEARCH.md` for implementation details and references.
 
@@ -115,8 +108,6 @@ FastAPI
               +-- travel_times.json
               +-- actual_sequences.json
 ```
-
-There is no CI/CD configuration in this repository. Tests and quality checks are local commands only.
 
 ## Sources
 
