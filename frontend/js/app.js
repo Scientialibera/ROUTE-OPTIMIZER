@@ -9,7 +9,11 @@ const state = {
   result: null,
   planMode: "optimized",
   productMode: "dispatch",
+  selectedRouteId: null,
 };
+
+const requestedMode = window.location.hash.replace("#", "");
+if (["dispatch", "recovery", "data"].includes(requestedMode)) state.productMode = requestedMode;
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
@@ -22,6 +26,11 @@ function initMap() {
     attribution: "OpenStreetMap",
     maxZoom: 18,
   }).addTo(state.map);
+
+  // Grid sizing and web-font loading can finish after Leaflet initializes.
+  // Re-measure the viewport so tiles and route overlays align with the panel.
+  requestAnimationFrame(() => state.map.invalidateSize());
+  window.addEventListener("resize", () => state.map.invalidateSize({ debounceMoveend: true }));
 }
 
 function minuteLabel(value) {
@@ -38,7 +47,7 @@ async function loadDemo() {
   $("datasetLabel").textContent = state.demo.dataset.label;
   populateVehicles();
   renderStopsOnly();
-  await runOptimization();
+  await runOptimization({ initial: true });
 }
 
 function populateVehicles() {
@@ -61,10 +70,18 @@ function scenarioPayload() {
   };
 }
 
-async function runOptimization() {
+function setOptimizationStatus(message, stateName = "") {
+  const status = $("optimizationStatus");
+  status.textContent = message;
+  status.className = `optimization-status ${stateName}`.trim();
+}
+
+async function runOptimization({ initial = false } = {}) {
   const button = $("optimizeButton");
+  const startedAt = performance.now();
   button.disabled = true;
-  button.textContent = "OPTIMIZING";
+  button.textContent = "OPTIMIZING...";
+  setOptimizationStatus("Optimization in progress: assigning stops, checking constraints and sequencing routes...", "running");
   try {
     const response = await fetch("/api/optimize", {
       method: "POST",
@@ -74,8 +91,12 @@ async function runOptimization() {
     if (!response.ok) throw new Error(`Optimizer returned ${response.status}`);
     state.result = await response.json();
     renderAll();
+    const plan = state.result.optimized;
+    const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
+    setOptimizationStatus(`Complete in ${elapsed}s — ${plan.routes.length} vehicle routes, ${plan.routes.reduce((sum, route) => sum + route.stop_ids.length, 0)} assigned stops, ${plan.late_stops} late deliveries.`, "success");
   } catch (error) {
     $("comparisonHeadline").textContent = `Optimization failed: ${error.message}`;
+    setOptimizationStatus(`Optimization failed: ${error.message}. Please try again.`, "error");
   } finally {
     button.disabled = false;
     button.textContent = "OPTIMIZE NETWORK";
@@ -92,6 +113,7 @@ function renderAll() {
   renderRoutes();
   renderRouteTable();
   renderModeOverlay();
+  requestAnimationFrame(() => state.map.invalidateSize({ pan: false }));
 }
 
 function renderKPIs() {
@@ -170,8 +192,8 @@ function renderRoutes() {
   plan.routes.forEach((route, index) => {
     const color = routeColors[index % routeColors.length];
     const latlngs = route.geometry.map((point) => [point.lat, point.lng]);
-    const line = L.polyline(latlngs, { color, weight: 4, opacity: .86 }).addTo(state.map);
-    line.on("click", () => inspectRoute(route));
+    const line = L.polyline(latlngs, { color, weight: 5, opacity: 1, lineCap: "round", lineJoin: "round", routeId: route.vehicle_id }).addTo(state.map);
+    line.on("click", () => selectRoute(route));
     line.bindTooltip(`${route.vehicle_id} · ${route.stop_ids.length} stops`, { sticky: true });
     state.routeLayers.push(line);
 
@@ -185,6 +207,38 @@ function renderRoutes() {
       state.stopLayers.push(marker);
     });
   });
+
+  renderRouteKey(plan.routes);
+  const allPoints = plan.routes.flatMap((route) => route.geometry.map((point) => [point.lat, point.lng]));
+  if (allPoints.length) state.map.fitBounds(allPoints, { padding: [42, 42], maxZoom: 13 });
+  const selected = plan.routes.find((route) => route.vehicle_id === state.selectedRouteId) || plan.routes[0];
+  if (selected) selectRoute(selected, { fit: false });
+}
+
+function renderRouteKey(routes) {
+  $("routeKey").innerHTML = routes.map((route, index) => {
+    const color = routeColors[index % routeColors.length];
+    return `<button type="button" data-route-id="${route.vehicle_id}" style="--route-color:${color}"><i class="route-swatch"></i>${route.vehicle_id} · ${route.stop_ids.length}</button>`;
+  }).join("");
+  $("routeKey").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
+    const route = routes.find((item) => item.vehicle_id === button.dataset.routeId);
+    selectRoute(route, { fit: true });
+  }));
+}
+
+function selectRoute(route, { fit = false } = {}) {
+  state.selectedRouteId = route.vehicle_id;
+  inspectRoute(route);
+  $("routeKey").querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.routeId === route.vehicle_id));
+  state.routeLayers.forEach((line) => {
+    const isSelected = line.options.routeId === route.vehicle_id;
+    line.setStyle({ weight: isSelected ? 8 : 4, opacity: isSelected ? 1 : .68 });
+    if (isSelected) line.bringToFront();
+  });
+  if (fit) {
+    const points = route.geometry.map((point) => [point.lat, point.lng]);
+    state.map.fitBounds(points, { padding: [55, 55], maxZoom: 14 });
+  }
 }
 
 function inspectRoute(route) {
@@ -222,8 +276,12 @@ function renderRouteTable() {
 
 function renderModeOverlay() {
   const overlay = $("modeOverlay");
+  const workspace = document.querySelector(".workspace");
+  workspace.classList.remove("mode-dispatch", "mode-recovery", "mode-data");
+  workspace.classList.add(`mode-${state.productMode}`);
   if (state.productMode === "dispatch") {
     overlay.classList.add("hidden");
+    requestAnimationFrame(() => state.map.invalidateSize({ pan: false }));
     return;
   }
   overlay.classList.remove("hidden");
@@ -272,8 +330,10 @@ function bindControls() {
     document.querySelectorAll(".mode-tab").forEach((b) => b.classList.remove("active"));
     button.classList.add("active");
     state.productMode = button.dataset.mode;
+    window.history.replaceState(null, "", `#${state.productMode}`);
     renderModeOverlay();
   }));
+  document.querySelectorAll(".mode-tab").forEach((button) => button.classList.toggle("active", button.dataset.mode === state.productMode));
 }
 
 function setPlanMode(mode) {

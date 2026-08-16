@@ -62,6 +62,9 @@
         </div>
 
         <button id="optimizeButton" class="primary-button">OPTIMIZE NETWORK</button>
+        <div id="optimizationStatus" class="optimization-status" role="status" aria-live="polite">
+          Ready to optimize the network.
+        </div>
         <p class="fine-print">Interactive heuristic. Results are decision-support outputs, not guaranteed global optima.</p>
       </aside>
 
@@ -83,6 +86,7 @@
           <span><i class="legend-dot late"></i>Late-risk</span>
           <span><i class="legend-line"></i>Vehicle route</span>
         </div>
+        <div id="routeKey" class="route-key" aria-label="Vehicle routes"></div>
       </section>
 
       <aside class="detail-panel panel">
