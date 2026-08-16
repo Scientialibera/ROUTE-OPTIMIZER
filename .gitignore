@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+.DS_Store
+*.log
+
+# Large Amazon Last Mile Routing Research Challenge downloads
+/data/amazon/
+/data/raw/
+/data/processed/

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Route Optimizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3ynSBCeI8gZa3KZV8oQwMZ2nS5sX0=" crossorigin="" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">RO</div>
+        <div>
+          <div class="brand-title">ROUTE OPTIMIZER</div>
+          <div class="brand-subtitle">LAST-MILE NETWORK OPERATIONS</div>
+        </div>
+      </div>
+      <nav class="mode-tabs" aria-label="Product modes">
+        <button class="mode-tab active" data-mode="dispatch">Dispatch Board</button>
+        <button class="mode-tab" data-mode="recovery">Disruption Recovery</button>
+        <button class="mode-tab" data-mode="data">Dataset Lab</button>
+      </nav>
+      <div class="data-status"><span class="status-dot"></span><span id="datasetLabel">Loading dataset</span></div>
+    </header>
+
+    <main class="workspace">
+      <section class="kpi-row" id="kpiRow"></section>
+
+      <aside class="control-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">SCENARIO</p>
+            <h2>Network controls</h2>
+          </div>
+          <button id="resetButton" class="ghost-button">Reset</button>
+        </div>
+
+        <label class="field-label">Traffic multiplier <output id="trafficValue">1.00x</output></label>
+        <input id="traffic" type="range" min="0.7" max="2.0" value="1" step="0.05" />
+
+        <label class="field-label">Demand spike <output id="demandValue">0%</output></label>
+        <input id="demand" type="range" min="0" max="60" value="0" step="5" />
+
+        <label class="field-label" for="vehicleSelect">Unavailable vehicle</label>
+        <select id="vehicleSelect"><option value="">None</option></select>
+
+        <label class="field-label">Average city speed <output id="speedValue">27 km/h</output></label>
+        <input id="speed" type="range" min="15" max="45" value="27" step="1" />
+
+        <div class="control-divider"></div>
+        <p class="eyebrow">OBJECTIVE</p>
+        <div class="objective-list">
+          <div><span>Distance and labor</span><strong>Primary</strong></div>
+          <div><span>Time-window failures</span><strong>High penalty</strong></div>
+          <div><span>Overtime</span><strong>Penalized</strong></div>
+          <div><span>Route balance</span><strong>Enabled</strong></div>
+        </div>
+
+        <button id="optimizeButton" class="primary-button">OPTIMIZE NETWORK</button>
+        <p class="fine-print">Interactive heuristic. Results are decision-support outputs, not guaranteed global optima.</p>
+      </aside>
+
+      <section class="map-panel panel">
+        <div class="map-toolbar">
+          <div>
+            <p class="eyebrow">LIVE PLAN</p>
+            <h2 id="mapTitle">Optimized delivery network</h2>
+          </div>
+          <div class="plan-toggle">
+            <button id="baselineToggle">Current</button>
+            <button id="optimizedToggle" class="active">Optimized</button>
+          </div>
+        </div>
+        <div id="map"></div>
+        <div class="map-legend">
+          <span><i class="legend-dot depot"></i>Depot</span>
+          <span><i class="legend-dot normal"></i>Delivery</span>
+          <span><i class="legend-dot late"></i>Late-risk</span>
+          <span><i class="legend-line"></i>Vehicle route</span>
+        </div>
+      </section>
+
+      <aside class="detail-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ROUTE INSPECTOR</p>
+            <h2 id="routeTitle">Select a route</h2>
+          </div>
+        </div>
+        <div id="routeSummary" class="route-summary empty-state">Click any route line to inspect its utilization, timing and stop sequence.</div>
+        <div id="stopList" class="stop-list"></div>
+      </aside>
+
+      <section class="comparison-panel panel">
+        <div class="panel-heading comparison-heading">
+          <div>
+            <p class="eyebrow">PLAN COMPARISON</p>
+            <h2>Current vs optimized</h2>
+          </div>
+          <div id="comparisonHeadline" class="comparison-headline">Run optimization to calculate savings.</div>
+        </div>
+        <div id="comparisonGrid" class="comparison-grid"></div>
+      </section>
+
+      <section class="route-table-panel panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ROUTE QUALITY</p>
+            <h2>Fleet route diagnostics</h2>
+          </div>
+          <span id="routeCount" class="table-meta"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Route</th><th>Stops</th><th>Distance</th><th>Driver time</th><th>Utilization</th><th>Late stops</th><th>Overtime</th><th>Cost</th></tr></thead>
+            <tbody id="routeTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="modeOverlay" class="mode-overlay panel hidden"></section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
