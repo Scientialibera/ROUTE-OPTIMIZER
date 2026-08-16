@@ -80,6 +80,14 @@
           </div>
         </div>
         <div id="map"></div>
+        <div class="map-edit-toolbar" aria-label="Map planning tools">
+          <span class="map-edit-label">ADD TO MAP</span>
+          <button id="addStartButton" type="button">Start point</button>
+          <button id="addLocationButton" type="button">Delivery</button>
+          <button id="undoMapPointButton" type="button" class="map-edit-secondary">Undo</button>
+          <button id="clearMapPointsButton" type="button" class="map-edit-secondary">Clear</button>
+          <output id="mapPointCount">0 starts · 0 deliveries</output>
+        </div>
         <div class="map-legend">
           <span><i class="legend-dot depot"></i>Depot</span>
           <span><i class="legend-dot normal"></i>Delivery</span>

@@ -66,6 +66,18 @@ select { width: 100%; background: #0a1017; color: var(--text); border: 1px solid
 .map-toolbar > * { pointer-events: auto; }
 .map-toolbar > div:first-child { padding: 10px 12px; background: rgba(8,12,17,.9); border: 1px solid rgba(56,71,88,.85); backdrop-filter: blur(8px); }
 .map-toolbar h2 { margin: 4px 0 0; font-size: 14px; }
+.map-edit-toolbar { position: absolute; z-index: 700; left: 14px; top: 83px; display: flex; align-items: center; gap: 5px; padding: 6px; background: rgba(8,12,17,.94); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.map-edit-label { padding: 0 5px; color: var(--muted); font-family: var(--mono); font-size: 8px; letter-spacing: .1em; }
+.map-edit-toolbar button { border: 1px solid var(--border); background: #111925; color: #cbd5df; padding: 6px 8px; font-size: 9px; }
+.map-edit-toolbar button:hover { border-color: #4d627a; color: #fff; }
+.map-edit-toolbar button.active { border-color: var(--accent); background: rgba(71,215,178,.14); color: var(--accent); }
+.map-edit-toolbar .map-edit-secondary { color: var(--muted); }
+.map-edit-toolbar output { padding: 0 5px; color: var(--accent); font-family: var(--mono); font-size: 8px; white-space: nowrap; }
+#map.add-start-mode { cursor: crosshair; }
+#map.add-location-mode { cursor: cell; }
+.custom-start-marker { width: 24px; height: 24px; display: grid; place-items: center; border: 3px solid #06120f; transform: rotate(45deg); background: var(--accent); color: #06120f; box-shadow: 0 0 0 2px rgba(71,215,178,.55), 0 4px 16px rgba(0,0,0,.5); }
+.custom-start-marker span { transform: rotate(-45deg); font: 700 9px var(--mono); }
+.custom-location-marker { width: 18px; height: 18px; display: grid; place-items: center; border: 2px solid #06101a; border-radius: 50%; background: #72a6ff; color: #06101a; box-shadow: 0 0 0 2px rgba(114,166,255,.5); font: 700 8px var(--mono); }
 .plan-toggle { padding: 3px; height: fit-content; background: rgba(8,12,17,.9); border: 1px solid var(--border); }
 .plan-toggle button { border: 0; background: transparent; color: var(--muted); padding: 8px 11px; font-size: 10px; }
 .plan-toggle button.active { background: #233041; color: white; }

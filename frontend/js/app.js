@@ -10,6 +10,11 @@ const state = {
   planMode: "optimized",
   productMode: "dispatch",
   selectedRouteId: null,
+  mapTool: null,
+  startPoints: [],
+  deliveryLocations: [],
+  customPointLayers: [],
+  pointHistory: [],
 };
 
 const requestedMode = window.location.hash.replace("#", "");
@@ -31,6 +36,7 @@ function initMap() {
   // Re-measure the viewport so tiles and route overlays align with the panel.
   requestAnimationFrame(() => state.map.invalidateSize());
   window.addEventListener("resize", () => state.map.invalidateSize({ debounceMoveend: true }));
+  state.map.on("click", handleMapClick);
 }
 
 function minuteLabel(value) {
@@ -67,7 +73,71 @@ function scenarioPayload() {
     unavailable_vehicle_id: $("vehicleSelect").value || null,
     average_speed_kph: Number($("speed").value),
     preference_weight: 0,
+    start_points: state.startPoints.map(({ lat, lng }) => ({ lat, lng })),
+    delivery_locations: state.deliveryLocations.map(({ lat, lng }) => ({ lat, lng })),
   };
+}
+
+function setMapTool(tool) {
+  state.mapTool = state.mapTool === tool ? null : tool;
+  $("addStartButton").classList.toggle("active", state.mapTool === "start");
+  $("addLocationButton").classList.toggle("active", state.mapTool === "delivery");
+  $("map").classList.toggle("add-start-mode", state.mapTool === "start");
+  $("map").classList.toggle("add-location-mode", state.mapTool === "delivery");
+  if (state.mapTool === "start") setOptimizationStatus("Start-point tool active — click the map to add one or more route origins.", "running");
+  if (state.mapTool === "delivery") setOptimizationStatus("Delivery tool active — click the map to add delivery locations.", "running");
+}
+
+function handleMapClick(event) {
+  if (!state.mapTool) return;
+  const point = { lat: event.latlng.lat, lng: event.latlng.lng };
+  if (state.mapTool === "start") {
+    state.startPoints.push(point);
+    state.pointHistory.push("start");
+  } else {
+    state.deliveryLocations.push(point);
+    state.pointHistory.push("delivery");
+  }
+  renderCustomPoints();
+  setOptimizationStatus(`${state.startPoints.length} start point${state.startPoints.length === 1 ? "" : "s"} and ${state.deliveryLocations.length} delivery location${state.deliveryLocations.length === 1 ? "" : "s"} ready. Click Optimize Network to build routes.`, "running");
+}
+
+function renderCustomPoints() {
+  state.customPointLayers.forEach((layer) => state.map.removeLayer(layer));
+  state.customPointLayers = [];
+  state.startPoints.forEach((point, index) => {
+    const marker = L.marker([point.lat, point.lng], {
+      zIndexOffset: 1000,
+      icon: L.divIcon({ className: "", html: `<div class="custom-start-marker"><span>${index + 1}</span></div>`, iconSize: [24, 24], iconAnchor: [12, 12] }),
+    }).addTo(state.map).bindTooltip(`Start point ${index + 1}`, { direction: "top" });
+    state.customPointLayers.push(marker);
+  });
+  state.deliveryLocations.forEach((point, index) => {
+    const marker = L.marker([point.lat, point.lng], {
+      zIndexOffset: 900,
+      icon: L.divIcon({ className: "", html: `<div class="custom-location-marker">${index + 1}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] }),
+    }).addTo(state.map).bindTooltip(`Delivery ${index + 1}`, { direction: "top" });
+    state.customPointLayers.push(marker);
+  });
+  $("mapPointCount").textContent = `${state.startPoints.length} starts · ${state.deliveryLocations.length} deliveries`;
+}
+
+function undoMapPoint() {
+  const type = state.pointHistory.pop();
+  if (!type) return;
+  if (type === "start") state.startPoints.pop();
+  else state.deliveryLocations.pop();
+  renderCustomPoints();
+  setOptimizationStatus("Last map point removed. Optimize again when your scenario is ready.");
+}
+
+function clearMapPoints() {
+  state.startPoints = [];
+  state.deliveryLocations = [];
+  state.pointHistory = [];
+  renderCustomPoints();
+  setMapTool(state.mapTool);
+  setOptimizationStatus("Custom map points cleared. The built-in demo remains available.");
 }
 
 function setOptimizationStatus(message, stateName = "") {
@@ -90,6 +160,7 @@ async function runOptimization({ initial = false } = {}) {
     });
     if (!response.ok) throw new Error(`Optimizer returned ${response.status}`);
     state.result = await response.json();
+    $("datasetLabel").textContent = state.result.dataset.label;
     renderAll();
     const plan = state.result.optimized;
     const elapsed = ((performance.now() - startedAt) / 1000).toFixed(1);
@@ -184,10 +255,12 @@ function renderRoutes() {
   if (!state.result) return;
   clearMapLayers();
   const plan = activePlan();
-  const depot = state.demo.depot;
-  state.depotLayer = L.marker([depot.lat, depot.lng], {
-    icon: L.divIcon({ className: "", html: '<div class="depot-marker"></div>', iconSize: [18, 18] }),
-  }).addTo(state.map).bindTooltip("Depot", { direction: "top" });
+  if (plan.source !== "custom_map") {
+    const depot = state.demo.depot;
+    state.depotLayer = L.marker([depot.lat, depot.lng], {
+      icon: L.divIcon({ className: "", html: '<div class="depot-marker"></div>', iconSize: [18, 18] }),
+    }).addTo(state.map).bindTooltip("Depot", { direction: "top" });
+  }
 
   plan.routes.forEach((route, index) => {
     const color = routeColors[index % routeColors.length];
@@ -317,6 +390,10 @@ function bindControls() {
     $(inputId).addEventListener("input", (event) => { $(outputId).textContent = format(event.target.value); });
   }
   $("optimizeButton").addEventListener("click", runOptimization);
+  $("addStartButton").addEventListener("click", () => setMapTool("start"));
+  $("addLocationButton").addEventListener("click", () => setMapTool("delivery"));
+  $("undoMapPointButton").addEventListener("click", undoMapPoint);
+  $("clearMapPointsButton").addEventListener("click", clearMapPoints);
   $("resetButton").addEventListener("click", () => {
     $("traffic").value = 1; $("trafficValue").textContent = "1.00x";
     $("demand").value = 0; $("demandValue").textContent = "0%";
